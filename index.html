@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador Rota do Chimarrão - Venatur</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="Venatur_favicom_ok.png">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Fonte Lato -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Lato', sans-serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #viewOrcamento, #viewOrcamento * { visibility: visible; }
+      #viewOrcamento { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
+      .no-print { display: none !important; }
+    }
+  </style>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            venablue: '#20366a',
+            venagreen: '#159a34',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-900 pb-56">
+
+  <!-- MODO 1: SIMULADOR INTERATIVO -->
+  <div id="viewSimulador" class="max-w-md mx-auto p-4">
+    <!-- Cabeçalho -->
+    <header class="text-center my-6 flex flex-col items-center">
+      <img src="Venatur PNG.png" alt="Venatur Viagens e Turismo" class="h-20 mb-3 object-contain" onerror="this.style.display='none'">
+      <h1 class="text-2xl font-bold text-venablue">Simulador Rota do Chimarrão</h1>
+      <p class="text-sm text-slate-600">Monte seu roteiro e envie o link do orçamento</p>
+    </header>
+
+    <!-- Avisos -->
+    <div class="bg-blue-50/70 border-l-4 border-venablue p-3.5 rounded-r-xl text-xs text-slate-700 mb-5 space-y-1">
+      <p>⏰ <strong>Horários:</strong> Os passeios seguem ordem cronológica (08h30 às 16h30).</p>
+      <p>🚌 <strong>Transporte:</strong> Não está incluso no valor do orçamento.</p>
+      <p>☕ <strong>Serviço de Bordo:</strong> R$ 5,00 por pessoa (incluso no cálculo).</p>
+    </div>
+
+    <!-- Configuração de Pessoas e Guia -->
+    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-6 space-y-5">
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <label class="font-bold text-sm text-venablue">Quantidade de Integrantes:</label>
+          <span class="text-xs text-slate-500 font-medium">(Mín. 10 / Máx. 30)</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <button onclick="alterarPessoas(-1)" class="w-12 h-12 bg-slate-100 font-bold text-xl rounded-xl border border-slate-300 active:bg-slate-200 shadow-sm text-venablue">-</button>
+          <div class="text-center">
+            <span id="qtdPessoas" class="text-3xl font-extrabold text-venablue">10</span>
+            <span class="text-xs text-slate-500 block">pessoas</span>
+          </div>
+          <button onclick="alterarPessoas(1)" class="w-12 h-12 bg-slate-100 font-bold text-xl rounded-xl border border-slate-300 active:bg-slate-200 shadow-sm text-venablue">+</button>
+        </div>
+        
+        <p id="tagMinimo" class="text-xs text-amber-700 font-semibold mt-3 text-center bg-amber-50 p-2 rounded-lg border border-amber-200">
+          ⚠️ Grupos com menos de 10 pessoas têm o valor calculado com base no mínimo de 10 pagantes.
+        </p>
+      </div>
+
+      <hr class="border-slate-100">
+
+      <div>
+        <label class="block font-bold text-sm text-venablue mb-2">Serviço de Guia de Turismo:</label>
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btnGuiaNao" onclick="setGuia(false)" class="py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-venablue bg-blue-50 text-venablue shadow-sm">
+            <span>Sem Guia</span>
+            <span class="text-xs font-normal">Grátis</span>
+          </button>
+          <button id="btnGuiaSim" onclick="setGuia(true)" class="py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-slate-200 bg-white text-slate-500 opacity-70">
+            <span>Com Guia</span>
+            <span class="text-xs font-normal">R$ 400,00 (Fixo)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Passeios -->
+    <h2 class="font-bold text-lg mb-3 text-venablue flex justify-between items-center">
+      <span>Selecione os Passeios:</span>
+      <span class="text-xs font-normal text-slate-500">Por ordem de horário</span>
+    </h2>
+    <div id="listaPasseios" class="space-y-3"></div>
+  </div>
+
+  <!-- Barra Fixa Inferior do Simulador -->
+  <div id="barSimulador" class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-slate-200 p-4 shadow-2xl z-40">
+    <div class="max-w-md mx-auto space-y-3">
+      <div class="flex items-center justify-between border-b pb-2">
+        <div>
+          <span class="text-xs text-slate-500 block font-bold">VALOR POR PESSOA</span>
+          <span id="valorPorPessoa" class="text-xl font-extrabold text-venagreen">R$ 0,00</span>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-slate-500 block font-bold">TOTAL DO GRUPO</span>
+          <span id="valorTotal" class="text-xl font-extrabold text-venablue">R$ 0,00</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-slate-500">
+        <span id="detalheGuia">Guia: Não incluso</span>
+        <span id="detalheTaxa" class="font-bold text-slate-600">Incluso Serv. Bordo + 10% Venatur</span>
+      </div>
+
+      <a id="btnEnviarWhats" href="#" target="_blank" class="w-full bg-venagreen text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-emerald-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+        </svg>
+        <span>Enviar Orçamento no WhatsApp</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- MODO 2: PÁGINA DO ORÇAMENTO DIGITAL -->
+  <div id="viewOrcamento" class="hidden max-w-md mx-auto p-4 my-4">
+    <div class="bg-white rounded-2xl p-6 shadow-xl border border-slate-200 space-y-6">
+      
+      <!-- Cabeçalho -->
+      <div class="border-b-2 border-venablue pb-4 text-center flex flex-col items-center">
+        <img src="Venatur PNG.png" alt="Venatur" class="h-16 mb-2 object-contain" onerror="this.style.display='none'">
+        <h1 class="text-xl font-extrabold text-venablue">Venatur Viagens e Turismo</h1>
+        <p class="text-xs text-slate-500 font-semibold">Orçamento Rota do Chimarrão</p>
+      </div>
+
+      <!-- Resumo -->
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <span class="text-slate-500 block">Integrantes:</span>
+          <strong id="docQtdPessoas" class="text-sm text-venablue font-extrabold">10 pessoas</strong>
+        </div>
+        <div class="text-right">
+          <span class="text-slate-500 block">Guia de Turismo:</span>
+          <strong id="docGuia" class="text-sm text-slate-800 font-bold">Sem Guia</strong>
+        </div>
+      </div>
+
+      <div class="text-[11px] text-slate-600 bg-amber-50 p-3 rounded-xl border border-amber-200">
+        📌 <i>Observação: Passeios em ordem cronológica (08h30 às 16h30). Transporte não incluso.</i>
+      </div>
+
+      <!-- Tabela -->
+      <div>
+        <h3 class="font-bold text-xs uppercase text-venablue tracking-wider mb-2 border-b pb-1">Passeios Incluídos:</h3>
+        <div id="docListaItens" class="space-y-2 text-xs"></div>
+      </div>
+
+      <!-- Totais -->
+      <div class="border-t-2 border-slate-200 pt-4 space-y-1.5 text-right text-xs">
+        <p class="text-slate-600">Subtotal Passeios: <span id="docSubtotal" class="font-semibold text-slate-800">R$ 0,00</span></p>
+        <p class="text-slate-600">Serviço de Bordo (R$ 5/p): <span id="docServBordo" class="font-semibold text-slate-800">R$ 0,00</span></p>
+        <p class="text-slate-600">Serviço de Guia: <span id="docValorGuia" class="font-semibold text-slate-800">R$ 0,00</span></p>
+        <p class="text-venablue font-bold">Taxa de Operação Venatur (10%): <span id="docTaxaVenatur" class="font-bold text-venablue">R$ 0,00</span></p>
+        
+        <div class="pt-3 border-t border-slate-200 mt-2">
+          <p class="text-xs font-bold text-slate-500 uppercase">Valor por Pessoa</p>
+          <p id="docValorPessoa" class="text-2xl font-black text-venagreen">R$ 0,00</p>
+          
+          <p class="text-xs font-bold text-slate-500 uppercase mt-2">Total Geral do Grupo</p>
+          <p id="docTotalGeral" class="text-2xl font-black text-venablue">R$ 0,00</p>
+        </div>
+      </div>
+
+      <!-- Ações -->
+      <div class="pt-4 border-t space-y-2 no-print">
+        <button onclick="window.print()" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl text-sm shadow hover:bg-slate-800">
+          🖨️ Imprimir / Salvar em PDF
+        </button>
+        <a id="docBtnVoltar" href="index.html" class="block text-center w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-sm hover:bg-slate-200">
+          ✏️ Montar Novo Roteiro
+        </a>
+      </div>
+
+      <div class="text-center text-[10px] text-slate-400 border-t pt-3">
+        Validade deste orçamento: 3 dias • (51) 98182-4466 | venatur.com.br
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script>
+    const passeios = [
+      { id: 1, nome: "Recanto Elacy/Cinemate - RSC287, Km 74", sub: "Linha Ponte Queimada", preco: 0, obs: "" },
+      { id: 2, nome: "Pórtico de Entrada e Parque Municipal do Chimarrão", sub: "", preco: 0, obs: "" },
+      { id: 3, nome: "Orquidário Cruz", sub: "", preco: 10, obs: "com agendamento" },
+      { id: 4, nome: "Praça Evangélica e Museu", sub: "", preco: 0, obs: "" },
+      { id: 5, nome: "Igreja São Sebastião Mártir e Centro", sub: "", preco: 0, obs: "" },
+      { id: 6, nome: "Chácara Coutinho", sub: "", preco: 60, obs: "Almoço" },
+      { id: 7, nome: "Café Colonial Ledi Maggioni", sub: "", preco: 70, obs: "Almoço" },
+      { id: 8, nome: "Koloni Kaffeehaus", sub: "", preco: 70, obs: "Almoço" },
+      { id: 9, nome: "Café Colonial Da Sol", sub: "", preco: 75, obs: "Almoço" },
+      { id: 10, nome: "Viveiro Flor da Terra", sub: "", preco: 20, obs: "" },
+      { id: 11, nome: "Jardim Primeira Essência", sub: "", preco: 15, obs: "" },
+      { id: 12, nome: "Escola do Chimarrão", sub: "", preco: 40, obs: "" },
+      { id: 13, nome: "Chácara Recanto Das Orquídeas", sub: "", preco: 15, obs: "com agendamento" },
+      { id: 14, nome: "Chácara do Mel", sub: "", preco: 15, obs: "" },
+      { id: 15, nome: "Cerro Do Baú", sub: "", preco: 0, obs: "" },
+      { id: 16, nome: "Jardim Secreto das Suculentas", sub: "", preco: 15, obs: "" },
+      { id: 17, nome: "Refúgio Rafah", sub: "", preco: 10, obs: "temporariamente em manutenção", bloqueado: true },
+      { id: 18, nome: "Casa Centenária Família Royer", sub: "", preco: 15, obs: "temporariamente em manutenção", bloqueado: true }
+    ];
+
+    let pessoas = 10;
+    let incluiGuia = false;
+    const selecionados = new Set();
+
+    function setGuia(status) {
+      incluiGuia = status;
+      const btnSim = document.getElementById('btnGuiaSim');
+      const btnNao = document.getElementById('btnGuiaNao');
+
+      if (incluiGuia) {
+        btnSim.className = "py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-venablue bg-blue-50 text-venablue shadow-sm";
+        btnNao.className = "py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-slate-200 bg-white text-slate-500 opacity-70";
+      } else {
+        btnNao.className = "py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-venablue bg-blue-50 text-venablue shadow-sm";
+        btnSim.className = "py-2.5 px-3 rounded-xl border-2 font-bold text-sm transition-all flex flex-col items-center border-slate-200 bg-white text-slate-500 opacity-70";
+      }
+      calcularTotal();
+    }
+
+    function renderizarPasseios() {
+      const container = document.getElementById('listaPasseios');
+      container.innerHTML = '';
+
+      passeios.forEach(p => {
+        const isSelected = selecionados.has(p.id);
+        const card = document.createElement('div');
+        
+        let classeCard = `p-4 rounded-xl border transition-all cursor-pointer flex justify-between items-center ${
+          isSelected ? 'border-venablue bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+        }`;
+
+        if (p.bloqueado) {
+          classeCard = `p-4 rounded-xl border border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed flex justify-between items-center`;
+        }
+
+        card.className = classeCard;
+        if (!p.bloqueado) card.onclick = () => alternarSelecao(p.id);
+
+        card.innerHTML = `
+          <div class="pr-2">
+            <h3 class="font-bold text-sm text-slate-800">${p.nome}</h3>
+            ${p.sub ? `<p class="text-xs text-slate-500">${p.sub}</p>` : ''}
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs font-bold ${p.preco === 0 ? 'text-venagreen' : 'text-slate-600'}">
+                ${p.preco === 0 ? 'GRÁTIS' : `R$ ${p.preco.toFixed(2)} / pessoa`}
+              </span>
+              ${p.obs ? `<span class="text-[10px] bg-slate-200/70 text-slate-600 px-1.5 py-0.5 rounded">${p.obs}</span>` : ''}
+            </div>
+          </div>
+          <div>
+            <input type="checkbox" ${isSelected ? 'checked' : ''} ${p.bloqueado ? 'disabled' : ''} class="w-5 h-5 accent-venablue rounded cursor-pointer">
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function alternarSelecao(id) {
+      if (selecionados.has(id)) selecionados.delete(id);
+      else selecionados.add(id);
+      calcularTotal();
+      renderizarPasseios();
+    }
+
+    function alterarPessoas(delta) {
+      pessoas = Math.max(1, Math.min(30, pessoas + delta));
+      document.getElementById('qtdPessoas').innerText = pessoas;
+      calcularTotal();
+    }
+
+    function calcularTotal() {
+      let subtotalUnicoPorPessoa = 0;
+      selecionados.forEach(id => {
+        const item = passeios.find(p => p.id === id);
+        if (item) subtotalUnicoPorPessoa += item.preco;
+      });
+
+      const pagantesPasseios = Math.max(10, pessoas);
+      const subtotalPasseios = subtotalUnicoPorPessoa * pagantesPasseios;
+      const taxaServicoBordo = 5 * pagantesPasseios;
+      const valorGuiaFixo = incluiGuia ? 400 : 0;
+
+      const baseRemuneracao = subtotalPasseios + taxaServicoBordo + valorGuiaFixo;
+      const remuneracaoVenatur = baseRemuneracao * 0.10;
+      const totalGeral = baseRemuneracao + remuneracaoVenatur;
+      const valorPorPessoaFinal = totalGeral / pessoas;
+
+      document.getElementById('valorTotal').innerText = `R$ ${totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      document.getElementById('valorPorPessoa').innerText = `R$ ${valorPorPessoaFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+      
+      const tagMin = document.getElementById('tagMinimo');
+      const detGuia = document.getElementById('detalheGuia');
+
+      detGuia.innerText = incluiGuia ? "Guia: R$ 400,00 incluso" : "Guia: Não incluso";
+
+      if (pessoas < 10) {
+        tagMin.classList.remove('hidden');
+      } else {
+        tagMin.classList.add('hidden');
+      }
+
+      atualizarLinkWhatsapp(totalGeral, valorPorPessoaFinal);
+    }
+
+    function atualizarLinkWhatsapp(totalGeral, valorPorPessoa) {
+      const btn = document.getElementById('btnEnviarWhats');
+      const telefone = "51993944530";
+
+      if (selecionados.size === 0) {
+        btn.href = "javascript:alert('Selecione pelo menos 1 passeio antes de enviar!')";
+        return;
+      }
+
+      const arrayIds = Array.from(selecionados).join(',');
+      const urlAtual = window.location.origin + window.location.pathname;
+      const urlOrcamento = `${urlAtual}?p=${arrayIds}&q=${pessoas}&g=${incluiGuia ? 1 : 0}`;
+
+      let msg = `Olá, tudo bem?\n`;
+      msg += `Montei esse roteiro de passeio da rota do chimarrão!!!\n\n`;
+      msg += `- *Quantidade de pessoas:* ${pessoas}\n`;
+      msg += `- *Guia de turismo:* ${incluiGuia ? 'Com Guia (R$ 400,00)' : 'Sem Guia'}\n`;
+      msg += `- *Serviço de Bordo:* R$ 5,00/pessoa incluso\n\n`;
+      msg += `- *Passeios Escolhidos:*\n`;
+
+      selecionados.forEach(id => {
+        const p = passeios.find(item => item.id === id);
+        if (p) msg += `  • ${p.nome} ${p.preco === 0 ? '(Grátis)' : '(R$ ' + p.preco.toFixed(2) + '/p)'}\n`;
+      });
+
+      msg += `\n- *Valor por Pessoa:* R$ ${valorPorPessoa.toFixed(2)}`;
+      msg += `\n- *Total Geral:* R$ ${totalGeral.toFixed(2)}\n\n`;
+      msg += `*Acesse o Orçamento Completo aqui:*\n${urlOrcamento}`;
+
+      btn.href = `https://wa.me/${telefone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function verificarModoPagina() {
+      const params = new URLSearchParams(window.location.search);
+      const paramPasseios = params.get('p');
+      const paramQtd = params.get('q');
+      const paramGuia = params.get('g');
+
+      if (paramPasseios) {
+        document.getElementById('viewSimulador').classList.add('hidden');
+        document.getElementById('barSimulador').classList.add('hidden');
+        document.getElementById('viewOrcamento').classList.remove('hidden');
+
+        const idsArray = paramPasseios.split(',').map(Number);
+        const qPessoas = parseInt(paramQtd) || 10;
+        const temGuia = paramGuia === '1';
+
+        document.getElementById('docQtdPessoas').innerText = `${qPessoas} pessoas`;
+        document.getElementById('docGuia').innerText = temGuia ? "Com Guia (R$ 400,00)" : "Sem Guia (Grátis)";
+
+        const listaContainer = document.getElementById('docListaItens');
+        listaContainer.innerHTML = '';
+        let subtotalUnico = 0;
+
+        idsArray.forEach(id => {
+          const item = passeios.find(p => p.id === id);
+          if (item) {
+            subtotalUnico += item.preco;
+            const div = document.createElement('div');
+            div.className = "flex justify-between border-b pb-1.5 text-slate-700";
+            div.innerHTML = `
+              <div>
+                <strong>${item.nome}</strong>
+                ${item.sub ? `<br><span class="text-[10px] text-slate-500">${item.sub}</span>` : ''}
+              </div>
+              <div class="font-bold">${item.preco === 0 ? '<span class="text-venagreen">GRÁTIS</span>' : 'R$ ' + item.preco.toFixed(2)}</div>
+            `;
+            listaContainer.appendChild(div);
+          }
+        });
+
+        const pagantes = Math.max(10, qPessoas);
+        const subtotalPasseios = subtotalUnico * pagantes;
+        const servBordo = 5 * pagantes;
+        const valorGuia = temGuia ? 400 : 0;
+        
+        const baseVenatur = subtotalPasseios + servBordo + valorGuia;
+        const taxaVenatur = baseVenatur * 0.10;
+        const totalFinal = baseVenatur + taxaVenatur;
+        const valorPorPessoa = totalFinal / qPessoas;
+
+        document.getElementById('docSubtotal').innerText = `R$ ${subtotalPasseios.toFixed(2)} ${qPessoas < 10 ? '(base 10 pagantes)' : ''}`;
+        document.getElementById('docServBordo').innerText = `R$ ${servBordo.toFixed(2)}`;
+        document.getElementById('docValorGuia').innerText = `R$ ${valorGuia.toFixed(2)}`;
+        document.getElementById('docTaxaVenatur').innerText = `R$ ${taxaVenatur.toFixed(2)}`;
+        document.getElementById('docValorPessoa').innerText = `R$ ${valorPorPessoa.toFixed(2)}`;
+        document.getElementById('docTotalGeral').innerText = `R$ ${totalFinal.toFixed(2)}`;
+
+      } else {
+        renderizarPasseios();
+        calcularTotal();
+      }
+    }
+
+    verificarModoPagina();
+  </script>
+</body>
+</html>
